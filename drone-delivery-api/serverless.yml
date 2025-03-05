@@ -1,0 +1,106 @@
+service: drone-delivery-api
+
+frameworkVersion: '3.40.0'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ap-south-1 # Explicit region
+  stage: ${opt:stage, 'dev'} # Enables stage-specific deployments
+  environment:
+    MONGO_URI: ${file(config.json):MONGO_URI}
+  httpApi: # httpApi for better performance
+    cors: true # Enable CORS
+
+functions:
+  registerDrone:
+    handler: handlers/registerDrone.registerDrone
+    name: registerDrone-${self:provider.stage}
+    timeout: 30 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: drones
+          method: post
+  getDrones:
+    handler: handlers/getDrones.getDrones
+    timeout: 30 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: drones
+          method: get
+  getMedications:
+    handler: handlers/getMedication.getMedication
+    timeout: 30 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: dev/medications
+          method: get
+          cors: true
+  loadMedication:
+    handler: handlers/loadMedication.loadMedication
+    timeout: 30 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: drones/{droneId}/medications
+          method: post
+  addMedication:
+    handler: handlers/addMedication.addMedication
+    timeout: 30 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: medications
+          method: post
+  updateDroneState:
+    handler: handlers/updateDroneState.updateDroneState
+    timeout: 30 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: drones/{droneId}/state
+          method: put
+  simulateBatteryDrain:
+    handler: handlers/batteryDrain.simulateBatteryDrain
+    timeout: 10 # Increased Lamba Timeout for testing
+    events:
+      - schedule:
+          rate: rate(2 minutes)
+  markDroneFailed:
+        handler: handlers/markDroneFailed.markDroneFailed
+        timeout: 30 # Increased Lamba Timeout for testing
+        events:
+            - http:
+                  path: drones/{droneId}/fail
+                  method: put
+  getBatteryLogs:
+    handler: handlers/getBatteryLogs.getBatteryLogs
+    timeout: 30 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: batteryLogs
+          method: get
+          request:
+            parameters:
+              querystrings:
+                startTime: true
+                endTime: true
+  getDroneReport:
+    handler: handlers/getDroneReport.getDroneReport
+    timeout: 60 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: droneReport
+          method: get
+          request:
+            parameters:
+              querystrings:
+                format: false
+  getErrorLogs:
+    handler: handlers/getErrorLogs.getErrorLogs
+    timeout: 60 # Increased Lamba Timeout for testing
+    events:
+      - http:
+          path: errorLogs
+          method: get
+
+plugins:
+  - serverless-offline
+  - serverless-dotenv-plugin #plugin to load .env files based on stage.
